@@ -36,7 +36,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
-          pkill -f 'java.*jar' || true
-          (nohup java -jar /home/ubuntu/springboot-app/*.jar > /home/ubuntu/springboot-app/app.log 2>&1 &) && echo "App started"
-      
+       script: |
+        pkill -f 'java.*jar' || true
+        tmux new-session -d -s springboot 'java -jar /home/ubuntu/springboot-app/*.jar > /home/ubuntu/springboot-app/app.log 2>&1'
+        echo "App started in tmux session"
