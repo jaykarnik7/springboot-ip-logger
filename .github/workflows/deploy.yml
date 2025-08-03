@@ -38,4 +38,4 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           pkill -f 'java.*jar' || true
-          nohup java -jar /home/ec2-user/app/*.jar > app.log 2>&1 &
+          nohup java -jar /home/ubuntu/springboot-app/*.jar > app.log 2>&1 &
