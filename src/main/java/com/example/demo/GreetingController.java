@@ -37,7 +37,7 @@ public class GreetingController {
         }
 
         return String.format(
-            "Hello %s!%nThe current system time is %s%nThe last query was by - %s on %s",
+            "Hello %s!%nThe current system time is %s%nThe last query was by - %s on %s%n",
             name, formatDateTime(now), lastName, lastTime
         );
     }
