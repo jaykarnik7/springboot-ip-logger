@@ -21,18 +21,18 @@ jobs:
     - name: 🛠️ Build with Maven
       run: mvn clean package -DskipTests
 
-    - name: 🚚 Copy .jar to EC2
+    - name: 🚚 Copy JAR to EC2
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: target/*.jar
-        target: /home/${{ secrets.EC2_USER }}/springboot-app/
-        strip_components: 0
+        source: "target/*.jar"
+        target: "/home/${{ secrets.EC2_USER }}/springboot-app/"
+        strip_components: 1
         overwrite: true
 
-    - name: 🔁 Restart app on EC2
+    - name: 🔁 Deploy with systemd
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -40,15 +40,109 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         port: 22
         timeout: 30s
-        command_timeout: 5m
+        command_timeout: 10m
         script: |
-          echo "🔪 Killing old Spring Boot process (if any)..."
-          pkill -f 'java.*jar' || true
-          echo "🌀 Starting new Spring Boot app in tmux..."
-          if tmux has-session -t springboot 2>/dev/null; then tmux kill-session -t springboot; fi
-          tmux new-session -d -s springboot 'java -jar /home/${{ secrets.EC2_USER }}/springboot-app/target/*.jar > /home/${{ secrets.EC2_USER }}/springboot-app/target/app.log 2>&1'
-          echo "✅ App started in tmux session 'springboot'"
-
-          echo "📄 Recent logs:"
+          echo "🔍 Setting up Spring Boot application with systemd..."
+          cd /home/${{ secrets.EC2_USER }}/springboot-app/
+          
+          # Find the JAR file
+          JAR_FILE=$(ls -1 *.jar | head -1)
+          if [ -z "$JAR_FILE" ]; then
+            echo "❌ No JAR file found in $(pwd)!"
+            ls -la
+            exit 1
+          fi
+          echo "📦 Found JAR file: $JAR_FILE"
+          
+          # Get the full path to the JAR file
+          JAR_PATH="/home/${{ secrets.EC2_USER }}/springboot-app/$JAR_FILE"
+          
+          # Stop the existing service if it's running
+          echo "🛑 Stopping existing springboot-app service..."
+          sudo systemctl stop springboot-app || echo "Service was not running"
+          
+          # Create the systemd service file
+          echo "📝 Creating systemd service file..."
+          sudo tee /etc/systemd/system/springboot-app.service > /dev/null <<EOF
+          [Unit]
+          Description=Spring Boot Demo Application
+          After=network.target
+          Wants=network.target
+          
+          [Service]
+          Type=simple
+          User=${{ secrets.EC2_USER }}
+          Group=${{ secrets.EC2_USER }}
+          WorkingDirectory=/home/${{ secrets.EC2_USER }}/springboot-app
+          ExecStart=/usr/bin/java -Xmx512m -Xms256m -Dspring.profiles.active=prod -jar $JAR_PATH
+          ExecStop=/bin/kill -15 \$MAINPID
+          Restart=always
+          RestartSec=10
+          KillMode=mixed
+          KillSignal=SIGTERM
+          TimeoutStopSec=30
+          StandardOutput=journal
+          StandardError=journal
+          SyslogIdentifier=springboot-app
+          
+          # Environment variables (if needed)
+          Environment=JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          # Set proper permissions on the service file
+          sudo chmod 644 /etc/systemd/system/springboot-app.service
+          
+          # Reload systemd daemon to recognize the new service
+          echo "🔄 Reloading systemd daemon..."
+          sudo systemctl daemon-reload
+          
+          # Enable the service to start on boot
+          echo "⚡ Enabling service to start on boot..."
+          sudo systemctl enable springboot-app
+          
+          # Start the service
+          echo "🚀 Starting springboot-app service..."
+          sudo systemctl start springboot-app
+          
+          # Wait a moment for the service to start
+          echo "⏳ Waiting for service to start..."
+          sleep 15
+          
+          # Check service status
+          echo "📊 Service status:"
+          sudo systemctl status springboot-app --no-pager -l
+          
+          # Show recent logs
+          echo "📄 Recent application logs:"
+          sudo journalctl -u springboot-app -n 20 --no-pager
+          
+          # Test if the application is responding
+          echo "🌐 Testing application health..."
           sleep 5
-          tail -n 20 /home/${{ secrets.EC2_USER }}/springboot-app/target/app.log || echo 'No logs yet.'
+          
+          # Test the health endpoint
+          if curl -f -s http://localhost:8080/actuator/health > /dev/null; then
+            echo "✅ Health check passed - Application is running!"
+          else
+            echo "⚠️  Health check failed - Testing main endpoint..."
+            # Try a simple curl to see if the app is at least responding
+            if curl -f -s -o /dev/null http://localhost:8080/; then
+              echo "✅ Application is responding on port 8080"
+            else
+              echo "❌ Application is not responding. Check logs above."
+              echo "🔍 Process status:"
+              ps aux | grep java || echo "No Java processes found"
+              echo "🔍 Port status:"
+              sudo netstat -tlnp | grep 8080 || echo "Port 8080 not in use"
+            fi
+          fi
+          
+          echo "🎯 Deployment complete!"
+          echo "📋 Useful commands for managing the service:"
+          echo "  sudo systemctl status springboot-app     # Check status"
+          echo "  sudo systemctl restart springboot-app    # Restart service"
+          echo "  sudo systemctl stop springboot-app       # Stop service"
+          echo "  sudo journalctl -u springboot-app -f     # Follow logs"
