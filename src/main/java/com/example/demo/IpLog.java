@@ -12,7 +12,7 @@ public class IpLog {
     private String ip;
     private LocalDateTime timestamp;
     // getters/setters omitted for brevity
-}
+
 
 public String getName() {
     return name;
@@ -37,3 +37,4 @@ public LocalDateTime getTimestamp() {
 public void setTimestamp(LocalDateTime timestamp) {
     this.timestamp = timestamp;
 }
+)
