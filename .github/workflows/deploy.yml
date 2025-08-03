@@ -28,7 +28,7 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         source: "target/*.jar"
-        target: "/home/ec2-user/app"
+        target: "/home/ubuntu/springboot-app"
 
     - name: Restart app on EC2
       uses: appleboy/ssh-action@v1.0.0
