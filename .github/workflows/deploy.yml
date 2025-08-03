@@ -44,11 +44,11 @@ jobs:
         script: |
           echo "🔪 Killing old Spring Boot process (if any)..."
           pkill -f 'java.*jar' || true
-
           echo "🌀 Starting new Spring Boot app in tmux..."
-          tmux has-session -t springboot 2>/dev/null && tmux kill-session -t springboot
-          tmux new-session -d -s springboot "java -jar /home/${{ secrets.EC2_USER }}/springboot-app/*.jar > /home/${{ secrets.EC2_USER }}/springboot-app/app.log 2>&1"
-
+          if tmux has-session -t springboot 2>/dev/null; then tmux kill-session -t springboot; fi
+          tmux new-session -d -s springboot 'java -jar /home/${{ secrets.EC2_USER }}/springboot-app/target/*.jar > /home/${{ secrets.EC2_USER }}/springboot-app/app.log 2>&1'
           echo "✅ App started in tmux session 'springboot'"
+
+          echo "📄 Recent logs:"
           sleep 5
           tail -n 20 /home/${{ secrets.EC2_USER }}/springboot-app/app.log || echo 'No logs yet.'
