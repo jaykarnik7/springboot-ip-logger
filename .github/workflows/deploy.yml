@@ -32,7 +32,7 @@ jobs:
         strip_components: 1
         overwrite: true
 
-    - name: 🔁 Deploy with systemd
+    - name: 🔁 Deploy with systemd and New Relic
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -42,7 +42,7 @@ jobs:
         timeout: 30s
         command_timeout: 10m
         script: |
-          echo "🔍 Setting up Spring Boot application with systemd..."
+          echo "🔍 Setting up Spring Boot application with systemd and New Relic..."
           cd /home/${{ secrets.EC2_USER }}/springboot-app/
           
           # Find the JAR file
@@ -57,15 +57,38 @@ jobs:
           # Get the full path to the JAR file
           JAR_PATH="/home/${{ secrets.EC2_USER }}/springboot-app/$JAR_FILE"
           
+          # Install New Relic agent if not already installed
+          echo "📊 Setting up New Relic agent..."
+          if [ ! -d "/opt/newrelic" ]; then
+            echo "📥 Downloading New Relic agent..."
+            sudo mkdir -p /opt/newrelic
+            cd /tmp
+            wget https://download.newrelic.com/newrelic/java-agent/newrelic-agent/current/newrelic-java.zip
+            unzip -o newrelic-java.zip
+            sudo cp -r newrelic/* /opt/newrelic/
+            sudo chmod 755 /opt/newrelic/newrelic.jar
+            echo "✅ New Relic agent installed"
+          else
+            echo "✅ New Relic agent already installed"
+          fi
+          
+          # Check if New Relic agent exists
+          if [ ! -f "/opt/newrelic/newrelic.jar" ]; then
+            echo "❌ New Relic agent not found at /opt/newrelic/newrelic.jar"
+            exit 1
+          fi
+          
+          cd /home/${{ secrets.EC2_USER }}/springboot-app/
+          
           # Stop the existing service if it's running
           echo "🛑 Stopping existing springboot-app service..."
           sudo systemctl stop springboot-app || echo "Service was not running"
           
-          # Create the systemd service file
-          echo "📝 Creating systemd service file..."
+          # Create the systemd service file with New Relic agent
+          echo "📝 Creating systemd service file with New Relic..."
           sudo tee /etc/systemd/system/springboot-app.service > /dev/null <<EOF
           [Unit]
-          Description=Spring Boot Demo Application
+          Description=Spring Boot Demo Application with New Relic
           After=network.target
           Wants=network.target
           
@@ -74,7 +97,7 @@ jobs:
           User=${{ secrets.EC2_USER }}
           Group=${{ secrets.EC2_USER }}
           WorkingDirectory=/home/${{ secrets.EC2_USER }}/springboot-app
-          ExecStart=/usr/bin/java -Xmx512m -Xms256m -Dspring.profiles.active=prod -jar $JAR_PATH
+          ExecStart=/usr/bin/java -javaagent:/opt/newrelic/newrelic.jar -Xmx512m -Xms256m -Dspring.profiles.active=prod -jar $JAR_PATH
           ExecStop=/bin/kill -15 \$MAINPID
           Restart=always
           RestartSec=10
@@ -85,7 +108,7 @@ jobs:
           StandardError=journal
           SyslogIdentifier=springboot-app
           
-          # Environment variables (if needed)
+          # Environment variables
           Environment=JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
           
           [Install]
@@ -104,7 +127,7 @@ jobs:
           sudo systemctl enable springboot-app
           
           # Start the service
-          echo "🚀 Starting springboot-app service..."
+          echo "🚀 Starting springboot-app service with New Relic..."
           sudo systemctl start springboot-app
           
           # Wait a moment for the service to start
@@ -119,30 +142,31 @@ jobs:
           echo "📄 Recent application logs:"
           sudo journalctl -u springboot-app -n 20 --no-pager
           
+          # Check if New Relic agent is loaded
+          echo "🔍 Checking for New Relic agent in logs..."
+          if sudo journalctl -u springboot-app -n 50 | grep -i "new relic"; then
+            echo "✅ New Relic agent appears to be loaded"
+          else
+            echo "⚠️  New Relic agent messages not found in logs yet"
+          fi
+          
           # Test if the application is responding
           echo "🌐 Testing application health..."
           sleep 5
           
           # Test the health endpoint
           if curl -f -s http://localhost:8080/actuator/health > /dev/null; then
-            echo "✅ Health check passed - Application is running!"
+            echo "✅ Health check passed - Application is running with New Relic!"
           else
             echo "⚠️  Health check failed - Testing main endpoint..."
-            # Try a simple curl to see if the app is at least responding
             if curl -f -s -o /dev/null http://localhost:8080/; then
               echo "✅ Application is responding on port 8080"
             else
               echo "❌ Application is not responding. Check logs above."
-              echo "🔍 Process status:"
-              ps aux | grep java || echo "No Java processes found"
-              echo "🔍 Port status:"
-              sudo netstat -tlnp | grep 8080 || echo "Port 8080 not in use"
             fi
           fi
           
-          echo "🎯 Deployment complete!"
-          echo "📋 Useful commands for managing the service:"
-          echo "  sudo systemctl status springboot-app     # Check status"
-          echo "  sudo systemctl restart springboot-app    # Restart service"
-          echo "  sudo systemctl stop springboot-app       # Stop service"
-          echo "  sudo journalctl -u springboot-app -f     # Follow logs"
+          echo "🎯 Deployment complete with New Relic monitoring!"
+          echo "📋 Useful commands:"
+          echo "  sudo systemctl status springboot-app"
+          echo "  sudo journalctl -u springboot-app -f"
