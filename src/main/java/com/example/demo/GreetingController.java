@@ -352,11 +352,11 @@ public class GreetingController {
      */
     private String getOrdinal(int day) {
         if (day >= 11 && day <= 13) return "th";
-        return switch (day) {
-            case 1, 21, 31 -> "st";
-            case 2, 22     -> "nd";
-            case 3, 23     -> "rd";
-            default        -> "th";
-        };
+        switch (day % 10) {
+            case 1: return "st";
+            case 2: return "nd";
+            case 3: return "rd";
+            default: return "th";
+        }
     }
 }
