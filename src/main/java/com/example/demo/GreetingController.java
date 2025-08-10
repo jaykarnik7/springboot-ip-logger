@@ -76,39 +76,32 @@ public class GreetingController {
     
     @Value("${app.load.delay.math-operations:1000000}")
     private int mathOperations;
-    
-    // Feature Toggle Configuration
-    @Value("${app.load.enable.cpu:true}")
-    private boolean enableCpuLoad;
-    
-    @Value("${app.load.enable.memory:true}")
-    private boolean enableMemoryLoad;
-    
-    @Value("${app.load.enable.db-writes:true}")
-    private boolean enableExtraDbWrites;
-    
-    @Value("${app.load.enable.db-reads:true}")
-    private boolean enableExtraDbReads;
-    
-    @Value("${app.load.enable.delays:true}")
-    private boolean enableProcessingDelays;
 
     @PostMapping("/greet")
-    public String greet(@RequestParam String name, HttpServletRequest request) {
+    public String greet(
+            @RequestParam String name, 
+            HttpServletRequest request,
+            // Load control parameters - all default to false
+            @RequestParam(defaultValue = "false") boolean enableCpu,
+            @RequestParam(defaultValue = "false") boolean enableMemory,
+            @RequestParam(defaultValue = "false") boolean enableDbWrites,
+            @RequestParam(defaultValue = "false") boolean enableDbReads,
+            @RequestParam(defaultValue = "false") boolean enableDelays) {
+        
         System.out.println("Starting configurable heavy processing for: " + name);
-        System.out.println("Configuration - CPU:" + enableCpuLoad + " Memory:" + enableMemoryLoad + 
-                          " DB-Writes:" + enableExtraDbWrites + " DB-Reads:" + enableExtraDbReads + 
-                          " Delays:" + enableProcessingDelays);
+        System.out.println("Load Configuration - CPU:" + enableCpu + " Memory:" + enableMemory + 
+                          " DB-Writes:" + enableDbWrites + " DB-Reads:" + enableDbReads + 
+                          " Delays:" + enableDelays);
         
         // 1. CONFIGURABLE CPU OPERATIONS
-        if (enableCpuLoad) {
+        if (enableCpu) {
             System.out.println("Performing CPU-intensive operations (Fibonacci:" + fibonacciCount + 
                              ", Sorting rounds:" + sortingRounds + ")...");
             performConfigurableCpuTask();
         }
         
         // 2. CONFIGURABLE MEMORY ALLOCATION
-        if (enableMemoryLoad) {
+        if (enableMemory) {
             System.out.println("Allocating memory (" + (memoryChunks * memoryChunkSizeMb) + "MB)...");
             consumeConfigurableMemory();
         }
@@ -124,19 +117,19 @@ public class GreetingController {
         ipLogRepository.save(mainLog);
 
         // 3. CONFIGURABLE ADDITIONAL DATABASE WRITES
-        if (enableExtraDbWrites) {
+        if (enableDbWrites) {
             System.out.println("Performing " + extraDbWrites + " additional database writes...");
             performConfigurableDatabaseWrites(name, ip, now);
         }
         
         // 4. CONFIGURABLE DATABASE READS
-        if (enableExtraDbReads) {
+        if (enableDbReads) {
             System.out.println("Performing " + dbReadOperations + " database read operations...");
             performConfigurableDatabaseReads();
         }
         
         // 5. CONFIGURABLE PROCESSING DELAYS
-        if (enableProcessingDelays) {
+        if (enableDelays) {
             System.out.println("Simulating " + externalServiceCalls + " external calls with " + 
                              externalCallDelay + "ms delay each...");
             simulateConfigurableSlowProcessing();
@@ -156,11 +149,11 @@ public class GreetingController {
         
         return String.format(
             "Hello %s!%nThe current system time is %s%nThe last query was by - %s on %s%n" +
-            "Configurable processing completed - CPU:%s Memory:%s DB-Writes:%s DB-Reads:%s Delays:%s%n",
+            "Load testing executed - CPU:%s Memory:%s DB-Writes:%s DB-Reads:%s Delays:%s%n",
             name, formatDateTime(now), lastName, lastTime,
-            enableCpuLoad ? "✓" : "✗", enableMemoryLoad ? "✓" : "✗", 
-            enableExtraDbWrites ? "✓" : "✗", enableExtraDbReads ? "✓" : "✗", 
-            enableProcessingDelays ? "✓" : "✗"
+            enableCpu ? "✓" : "✗", enableMemory ? "✓" : "✗", 
+            enableDbWrites ? "✓" : "✗", enableDbReads ? "✓" : "✗", 
+            enableDelays ? "✓" : "✗"
         );
     }
 
