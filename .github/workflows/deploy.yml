@@ -42,7 +42,7 @@ jobs:
         timeout: 30s
         command_timeout: 10m
         script: |
-          echo "🔍 Setting up Resource-Constrained Spring Boot application with systemd and New Relic..."
+          echo "🔍 Setting up Spring Boot application with systemd and New Relic..."
           cd /home/${{ secrets.EC2_USER }}/springboot-app/
           
           # Find the JAR file
@@ -70,11 +70,11 @@ jobs:
           echo "🛑 Stopping existing springboot-app service..."
           sudo systemctl stop springboot-app || echo "Service was not running"
           
-          # Create the systemd service file with New Relic agent and CONSTRAINED RESOURCES
-          echo "📝 Creating systemd service file with New Relic integration and resource constraints for bottleneck testing..."
+          # Create the systemd service file with New Relic agent
+          echo "📝 Creating systemd service file with New Relic integration..."
           sudo tee /etc/systemd/system/springboot-app.service > /dev/null <<EOF
           [Unit]
-          Description=Resource-Constrained Spring Boot Application with New Relic
+          Description=Spring Boot Demo Application with New Relic
           After=network.target
           Wants=network.target
           
@@ -83,7 +83,7 @@ jobs:
           User=${{ secrets.EC2_USER }}
           Group=${{ secrets.EC2_USER }}
           WorkingDirectory=/home/${{ secrets.EC2_USER }}/springboot-app
-          ExecStart=/usr/bin/java -javaagent:$NEWRELIC_PATH -Xmx150m -Xms75m -XX:MaxMetaspaceSize=64m -Dspring.profiles.active=prod -jar $JAR_PATH
+          ExecStart=/usr/bin/java -javaagent:$NEWRELIC_PATH -Xmx512m -Xms256m -Dspring.profiles.active=prod -jar $JAR_PATH
           ExecStop=/bin/kill -15 \$MAINPID
           Restart=always
           RestartSec=10
@@ -97,10 +97,6 @@ jobs:
           # Environment variables
           Environment=JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
           Environment=NEW_RELIC_CONFIG_FILE=/opt/newrelic/newrelic.yml
-          
-          # Resource constraints for bottleneck testing
-          MemoryMax=200M
-          CPUQuota=40%
           
           [Install]
           WantedBy=multi-user.target
@@ -118,12 +114,12 @@ jobs:
           sudo systemctl enable springboot-app
           
           # Start the service
-          echo "🚀 Starting resource-constrained springboot-app service with New Relic..."
+          echo "🚀 Starting springboot-app service with New Relic..."
           sudo systemctl start springboot-app
           
           # Wait a moment for the service to start
           echo "⏳ Waiting for service to start..."
-          sleep 20
+          sleep 15
           
           # Check service status
           echo "📊 Service status:"
@@ -135,36 +131,33 @@ jobs:
           
           # Test if the application is responding
           echo "🌐 Testing application health..."
-          sleep 10
+          sleep 5
           
-          # Test a simple endpoint
-          if curl -f -s -o /dev/null -w "%{http_code}" http://localhost:8080/ | grep -q "200\|404"; then
-            echo "✅ Application is responding on port 8080"
+          # Test the health endpoint
+          if curl -f -s http://localhost:8080/actuator/health > /dev/null; then
+            echo "✅ Health check passed - Application is running!"
           else
-            echo "❌ Application is not responding. Check logs above."
-            echo "🔍 Process status:"
-            ps aux | grep java || echo "No Java processes found"
-            echo "🔍 Port status:"
-            sudo netstat -tlnp | grep 8080 || echo "Port 8080 not in use"
+            echo "⚠️  Health check failed - Testing main endpoint..."
+            # Try a simple curl to see if the app is at least responding
+            if curl -f -s -o /dev/null http://localhost:8080/; then
+              echo "✅ Application is responding on port 8080"
+            else
+              echo "❌ Application is not responding. Check logs above."
+              echo "🔍 Process status:"
+              ps aux | grep java || echo "No Java processes found"
+              echo "🔍 Port status:"
+              sudo netstat -tlnp | grep 8080 || echo "Port 8080 not in use"
+            fi
           fi
           
           # Check if New Relic agent is working
           echo "🔍 Checking New Relic agent initialization..."
           sudo journalctl -u springboot-app | grep -i "new relic" | tail -5 || echo "No New Relic logs found yet"
           
-          echo "🎯 Resource-Constrained Application Deployment complete!"
-          echo "⚠️  RESOURCE CONSTRAINTS ACTIVE:"
-          echo "   • JVM Heap: 150MB max (was ~400MB)"
-          echo "   • System Memory: 200MB limit"
-          echo "   • CPU: 40% quota"
-          echo "   • DB Connections: 2 max (was 10)"
-          echo "   • Tomcat Threads: 3 max (was 200)"
-          echo "   • Max Connections: 5 (was 8192)"
-          echo ""
-          echo "📋 Useful commands for monitoring during load tests:"
+          echo "🎯 Deployment complete!"
+          echo "📋 Useful commands for managing the service:"
           echo "  sudo systemctl status springboot-app     # Check status"
-          echo "  sudo systemctl restart springboot-app    # Restart service"  
+          echo "  sudo systemctl restart springboot-app    # Restart service"
+          echo "  sudo systemctl stop springboot-app       # Stop service"
           echo "  sudo journalctl -u springboot-app -f     # Follow logs"
-          echo "  top -p \$(pgrep java)                     # Monitor Java process resources"
-          echo "  free -h                                   # Check system memory"
-          echo "  curl -X POST 'http://localhost:8080/greet?name=TestUser'  # Test endpoint"
+          echo "  sudo journalctl -u springboot-app | grep -i 'new relic'  # Check New Relic logs"
