@@ -297,8 +297,9 @@ public class GreetingController {
             }
             
             // Simulate configurable complex calculations
+            double total = 0;
             for (int i = 0; i < mathOperations; i++) {
-                Math.sin(i) * Math.cos(i) * Math.tan(i);
+                total += Math.sin(i) * Math.cos(i) * Math.tan(i);
             }
             
         } catch (InterruptedException e) {
