@@ -337,18 +337,19 @@ public class GreetingController {
     }
 
     /**
-     * FORMAT DATE TIME (unchanged from original)
+     * FORMAT DATE TIME
      */
     private String formatDateTime(LocalDateTime dt) {
         String time = dt.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
         String dow = dt.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
-        int day = dt.getDayOfMonth(), year = dt.getYear();
+        int day = dt.getDayOfMonth();
+        int year = dt.getYear();
         String month = dt.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
         return time + " on the " + day + getOrdinal(day) + " of " + month + ", " + year + " (" + dow + ")";
     }
 
     /**
-     * GET ORDINAL (unchanged from original)
+     * GET ORDINAL
      */
     private String getOrdinal(int day) {
         if (day >= 11 && day <= 13) return "th";
