@@ -83,7 +83,7 @@ jobs:
           User=${{ secrets.EC2_USER }}
           Group=${{ secrets.EC2_USER }}
           WorkingDirectory=/home/${{ secrets.EC2_USER }}/springboot-app
-          ExecStart=/usr/bin/java -javaagent:$NEWRELIC_PATH -Xmx512m -Xms256m -Dspring.profiles.active=prod -jar $JAR_PATH
+          ExecStart=/usr/bin/java -javaagent:$NEWRELIC_PATH -Xmx512m -Dspring.profiles.active=prod -jar $JAR_PATH
           ExecStop=/bin/kill -15 \$MAINPID
           Restart=always
           RestartSec=10
