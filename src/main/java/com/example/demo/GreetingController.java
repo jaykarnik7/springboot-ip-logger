@@ -45,26 +45,15 @@ public class GreetingController {
             @RequestParam(defaultValue = "false") boolean enableDbReads,
             @RequestParam(defaultValue = "false") boolean enableDelays) {
         
-        System.out.println("=".repeat(80));
-        System.out.println("Starting configurable load testing for: " + name);
-        System.out.println("Load Configuration - CPU:" + enableCpu + " Memory:" + enableMemory + 
-                          " DB-Writes:" + enableDbWrites + " DB-Reads:" + enableDbReads + 
-                          " Delays:" + enableDelays);
-        System.out.println("=".repeat(80));
-        
         long startTime = System.currentTimeMillis();
         
-        // 1. CONFIGURABLE CPU OPERATIONS
+        // 1. CPU OPERATIONS
         if (enableCpu) {
-            System.out.println("\n[1/5] CPU OPERATIONS");
-            System.out.println("-".repeat(40));
             cpuService.performConfigurableCpuTask();
         }
         
-        // 2. CONFIGURABLE MEMORY ALLOCATION
+        // 2. MEMORY ALLOCATION
         if (enableMemory) {
-            System.out.println("\n[2/5] MEMORY OPERATIONS");
-            System.out.println("-".repeat(40));
             memoryService.consumeConfigurableMemory();
         }
         
@@ -72,33 +61,24 @@ public class GreetingController {
         LocalDateTime now = LocalDateTime.now();
 
         // Always save the main log entry
-        System.out.println("\n[CORE] SAVING MAIN LOG ENTRY");
-        System.out.println("-".repeat(40));
         IpLog mainLog = new IpLog();
         mainLog.setName(name);
         mainLog.setIp(ip);
         mainLog.setTimestamp(now);
         ipLogRepository.save(mainLog);
-        System.out.println("Main log entry saved for: " + name + " from IP: " + ip);
 
-        // 3. CONFIGURABLE DATABASE WRITES (with multiple connections)
+        // 3. DATABASE WRITES
         if (enableDbWrites) {
-            System.out.println("\n[3/5] DATABASE WRITE OPERATIONS");
-            System.out.println("-".repeat(40));
             databaseService.performConfigurableDatabaseWrites(name, ip, now);
         }
         
-        // 4. CONFIGURABLE DATABASE READS (with multiple connections)
+        // 4. DATABASE READS
         if (enableDbReads) {
-            System.out.println("\n[4/5] DATABASE READ OPERATIONS");
-            System.out.println("-".repeat(40));
             databaseService.performConfigurableDatabaseReads();
         }
         
-        // 5. CONFIGURABLE PROCESSING DELAYS
+        // 5. PROCESSING DELAYS
         if (enableDelays) {
-            System.out.println("\n[5/5] PROCESSING DELAY OPERATIONS");
-            System.out.println("-".repeat(40));
             delayService.simulateConfigurableSlowProcessing();
         }
 
@@ -114,39 +94,26 @@ public class GreetingController {
 
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
-
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("LOAD TESTING COMPLETED for: " + name);
-        System.out.println("Total execution time: " + totalTime + "ms");
-        System.out.println("Database stats: " + databaseService.getDatabaseStats());
-        if (enableMemory) {
-            System.out.println("Memory stats: " + memoryService.getMemoryStats());
-        }
-        System.out.println("=".repeat(80));
         
         return String.format(
             "Hello %s!%n" +
-            "🕒 Current system time: %s%n" +
-            "📝 Last query was by: %s on %s%n" +
-            "⚡ Total processing time: %dms%n" +
-            "%n🧪 Load testing executed:%n" +
-            "  CPU: %s | Memory: %s | DB-Writes: %s | DB-Reads: %s | Delays: %s%n" +
-            "%n📊 System Info:%n" +
-            "  %s%n" +
+            "Current system time: %s%n" +
+            "Last query was by: %s on %s%n" +
+            "Processing time: %dms%n" +
+            "Load testing - CPU:%s Memory:%s DB-Writes:%s DB-Reads:%s Delays:%s%n" +
             "%s%n" +
-            "%n💡 Use POST /cleanup to clean database (keeps last 10 entries)%n",
+            "Use POST /cleanup to clean database%n",
             name, 
             formatDateTime(now), 
             lastName, 
             lastTime,
             totalTime,
-            enableCpu ? "✅" : "❌", 
-            enableMemory ? "✅" : "❌", 
-            enableDbWrites ? "✅" : "❌", 
-            enableDbReads ? "✅" : "❌", 
-            enableDelays ? "✅" : "❌",
-            databaseService.getDatabaseStats(),
-            enableMemory ? "  " + memoryService.getMemoryStats() : ""
+            enableCpu ? "✓" : "✗", 
+            enableMemory ? "✓" : "✗", 
+            enableDbWrites ? "✓" : "✗", 
+            enableDbReads ? "✓" : "✗", 
+            enableDelays ? "✓" : "✗",
+            databaseService.getDatabaseStats()
         );
     }
 
