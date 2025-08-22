@@ -78,12 +78,9 @@ public class GreetingController {
     @Value("${app.load.delay.math-operations:1000000}")
     private int mathOperations;
 
-    // NEW: Database Cleanup Configuration
+    // Database Cleanup Configuration
     @Value("${app.db.cleanup.keep-records:1000}")
     private int keepRecordsCount;
-
-    @Value("${app.db.cleanup.auto-threshold:10000}")
-    private int autoCleanupThreshold;
 
     @PostMapping("/greet")
     public String greet(
@@ -95,7 +92,7 @@ public class GreetingController {
             @RequestParam(defaultValue = "false") boolean enableDbWrites,
             @RequestParam(defaultValue = "false") boolean enableDbReads,
             @RequestParam(defaultValue = "false") boolean enableDelays,
-            // NEW: Database cleanup parameter
+            // Database cleanup parameter
             @RequestParam(defaultValue = "false") boolean enableCleanup) {
 
         System.out.println("Starting configurable heavy processing for: " + name);
@@ -103,7 +100,7 @@ public class GreetingController {
                 " DB-Writes:" + enableDbWrites + " DB-Reads:" + enableDbReads +
                 " Delays:" + enableDelays + " Cleanup:" + enableCleanup);
 
-        // 0. OPTIONAL DATABASE CLEANUP
+        // OPTIONAL DATABASE CLEANUP
         if (enableCleanup) {
             System.out.println("Performing database cleanup...");
             performDatabaseCleanup();
@@ -138,21 +135,18 @@ public class GreetingController {
             performConfigurableDatabaseWrites(name, ip, now);
         }
 
-        // 4. OPTIMIZED DATABASE READS
+        // OPTIMIZED DATABASE READS
         if (enableDbReads) {
             System.out.println("Performing " + dbReadOperations + " optimized database read operations...");
             performOptimizedDatabaseReads();
         }
 
-        // 5. CONFIGURABLE PROCESSING DELAYS
+        // CONFIGURABLE PROCESSING DELAYS
         if (enableDelays) {
             System.out.println("Simulating " + externalServiceCalls + " external calls with " +
                     externalCallDelay + "ms delay each...");
             simulateConfigurableSlowProcessing();
         }
-
-        // Auto-cleanup check
-        performAutoCleanupIfNeeded();
 
         // Get the last two entries for response
         List<IpLog> logs = ipLogRepository.findTop2ByOrderByTimestampDesc();
@@ -176,7 +170,7 @@ public class GreetingController {
     }
 
     /**
-     * NEW: DATABASE CLEANUP METHOD
+     * DATABASE CLEANUP METHOD
      * Purges all records except the last N entries as configured in
      * application.properties
      */
@@ -202,23 +196,6 @@ public class GreetingController {
         } catch (Exception e) {
             System.err.println("Database cleanup failed: " + e.getMessage());
             e.printStackTrace();
-        }
-    }
-
-    /**
-     * NEW: AUTO CLEANUP CHECK
-     * Automatically performs cleanup if record count exceeds threshold
-     */
-    private void performAutoCleanupIfNeeded() {
-        try {
-            long totalRecords = ipLogRepository.countTotalRecords();
-            if (totalRecords > autoCleanupThreshold) {
-                System.out.println("Auto-cleanup triggered. Total records (" + totalRecords +
-                        ") > threshold (" + autoCleanupThreshold + ")");
-                performDatabaseCleanup();
-            }
-        } catch (Exception e) {
-            System.err.println("Auto-cleanup check failed: " + e.getMessage());
         }
     }
 
@@ -316,7 +293,7 @@ public class GreetingController {
     }
 
     /**
-     * NEW: OPTIMIZED DATABASE READS
+     * OPTIMIZED DATABASE READS
      * Removed full table scan functionality and optimized to read only last X
      * records
      */
