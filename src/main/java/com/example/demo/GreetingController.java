@@ -51,22 +51,13 @@ public class GreetingController {
     @Value("${app.load.memory.hold-time-ms:500}")
     private int memoryHoldTime;
 
-    // Database Configuration
-    @Value("${app.load.db.write.extra-entries:10}")
-    private int extraDbWrites;
+    // Database Configuration - Common number for both reads and writes
+    @Value("${app.load.db.operations:20}")
+    private int dbOperations;
 
-    @Value("${app.load.db.write.delay-ms:10}")
-    private int dbWriteDelay;
-
-    @Value("${app.load.db.read.operations:20}")
-    private int dbReadOperations;
-
-    @Value("${app.load.db.read.delay-ms:50}")
-    private int dbReadDelay;
-
-    // NEW: Database Read Configuration - number of records to fetch
-    @Value("${app.load.db.read.fetch-count:100}")
-    private int dbReadFetchCount;
+    // Database Configuration - number of records per query (both reads and writes)
+    @Value("${app.load.db.records-per-operation:100}")
+    private int dbRecordsPerOperation;
 
     // Processing Delay Configuration
     @Value("${app.load.delay.external-calls:3}")
@@ -131,13 +122,14 @@ public class GreetingController {
 
         // 3. CONFIGURABLE ADDITIONAL DATABASE WRITES
         if (enableDbWrites) {
-            System.out.println("Performing " + extraDbWrites + " additional database writes...");
+            System.out.println("Performing " + dbOperations + " batch database writes (" + 
+                    dbRecordsPerOperation + " records per batch)...");
             performConfigurableDatabaseWrites(name, ip, now);
         }
 
         // OPTIMIZED DATABASE READS
         if (enableDbReads) {
-            System.out.println("Performing " + dbReadOperations + " optimized database read operations...");
+            System.out.println("Performing " + dbOperations + " optimized database read operations...");
             performOptimizedDatabaseReads();
         }
 
@@ -269,41 +261,45 @@ public class GreetingController {
     }
 
     /**
-     * CONFIGURABLE DATABASE WRITES
+     * OPTIMIZED BATCH DATABASE WRITES
      */
     private void performConfigurableDatabaseWrites(String name, String ip, LocalDateTime now) {
-        // Create configurable number of additional log entries
-        for (int i = 1; i <= extraDbWrites; i++) {
-            IpLog additionalLog = new IpLog();
-            additionalLog.setName(name + "_extra_" + i);
-            additionalLog.setIp(ip);
-            additionalLog.setTimestamp(now.plusSeconds(i));
-            ipLogRepository.save(additionalLog);
-
-            // Add configurable delay between saves
-            if (dbWriteDelay > 0) {
-                try {
-                    Thread.sleep(dbWriteDelay);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+        int totalRecordsInserted = 0;
+        
+        // Perform the configured number of batch operations
+        for (int batchNum = 0; batchNum < dbOperations; batchNum++) {
+            List<IpLog> batchLogs = new ArrayList<>();
+            
+            // Create a batch of records
+            for (int recordNum = 0; recordNum < dbRecordsPerOperation; recordNum++) {
+                IpLog batchLog = new IpLog();
+                batchLog.setName(name + "_batch" + batchNum + "_rec" + recordNum);
+                batchLog.setIp(ip);
+                batchLog.setTimestamp(now.plusSeconds(totalRecordsInserted + recordNum));
+                batchLogs.add(batchLog);
             }
+            
+            // Save the entire batch in one operation
+            ipLogRepository.saveAll(batchLogs);
+            totalRecordsInserted += dbRecordsPerOperation;
+            
+            System.out.println("Batch " + (batchNum + 1) + ": Inserted " + dbRecordsPerOperation + " records");
         }
-        System.out.println("Completed " + (extraDbWrites + 1) + " database write operations");
+        
+        System.out.println("Completed " + dbOperations + " batch write operations, " +
+                "total records inserted: " + totalRecordsInserted);
     }
 
     /**
-     * OPTIMIZED DATABASE READS
-     * Removed full table scan functionality and optimized to read only last X
-     * records
+     * OPTIMIZED DATABASE READS - No unnecessary delays
      */
     private void performOptimizedDatabaseReads() {
         // Perform configurable number of read operations
-        for (int i = 0; i < dbReadOperations; i++) {
+        for (int i = 0; i < dbOperations; i++) {
             // Read the configured number of recent records
-            List<IpLog> recentLogs = ipLogRepository.findTopNByOrderByTimestampDesc(dbReadFetchCount);
+            List<IpLog> recentLogs = ipLogRepository.findTopNByOrderByTimestampDesc(dbRecordsPerOperation);
             System.out.println("Optimized read operation " + (i + 1) + ": Found " +
-                    recentLogs.size() + " recent records (limit: " + dbReadFetchCount + ")");
+                    recentLogs.size() + " recent records (limit: " + dbRecordsPerOperation + ")");
 
             // Process some data to ensure the records are actually used
             if (!recentLogs.isEmpty()) {
@@ -313,17 +309,8 @@ public class GreetingController {
                         .count();
                 System.out.println("  └─ Unique IPs in fetched records: " + uniqueIps);
             }
-
-            // Configurable delay between reads
-            if (dbReadDelay > 0) {
-                try {
-                    Thread.sleep(dbReadDelay);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
         }
-        System.out.println("Completed " + dbReadOperations + " optimized database read operations");
+        System.out.println("Completed " + dbOperations + " optimized database read operations");
     }
 
     /**
