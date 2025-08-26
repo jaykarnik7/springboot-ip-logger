@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -9,6 +10,9 @@ import java.util.Random;
 
 @Service
 public class MemoryLoadService {
+
+    @Autowired
+    private LoggingService loggingService;
 
     private Random random = new Random();
 
@@ -26,8 +30,10 @@ public class MemoryLoadService {
     private int memoryHoldTime;
 
     public void performMemoryLoad() {
-        System.out.println("Allocating memory (" + (memoryChunks * memoryChunkSizeMb) + "MB)...");
+        int totalMB = memoryChunks * memoryChunkSizeMb;
+        loggingService.logMemoryLoadStart(totalMB);
         consumeConfigurableMemory();
+        loggingService.logMemoryLoadComplete(totalMB);
     }
 
     /**
@@ -54,7 +60,7 @@ public class MemoryLoadService {
 
             // Process the string to ensure JVM doesn't optimize it away
             String result = largeString.toString();
-            System.out.println("Created large string of length: " + result.length());
+            loggingService.logStringOperationResult(result.length());
 
             // Hold memory for configurable time
             Thread.sleep(memoryHoldTime);
@@ -62,10 +68,7 @@ public class MemoryLoadService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (OutOfMemoryError e) {
-            System.err.println("Out of memory! Continuing...");
+            loggingService.logMemoryError();
         }
-
-        System.out.println("Memory allocation completed: " +
-                (memoryChunks * memoryChunkSizeMb) + "MB allocated");
     }
 }

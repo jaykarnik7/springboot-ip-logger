@@ -9,6 +9,7 @@ import com.example.demo.service.CpuLoadService;
 import com.example.demo.service.DatabaseCleanupService;
 import com.example.demo.service.DatabaseLoadService;
 import com.example.demo.service.DelayLoadService;
+import com.example.demo.service.LoggingService;
 import com.example.demo.service.MemoryLoadService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,6 +40,9 @@ public class GreetingController {
     @Autowired
     private DatabaseCleanupService databaseCleanupService;
 
+    @Autowired
+    private LoggingService loggingService;
+
     @PostMapping("/greet")
     public String greet(
             @RequestParam String name,
@@ -52,10 +56,12 @@ public class GreetingController {
             // Database cleanup parameter
             @RequestParam(defaultValue = "false") boolean enableCleanup) {
 
-        System.out.println("Starting configurable heavy processing for: " + name);
-        System.out.println("Load Configuration - CPU:" + enableCpu + " Memory:" + enableMemory +
-                " DB-Writes:" + enableDbWrites + " DB-Reads:" + enableDbReads +
-                " Delays:" + enableDelays + " Cleanup:" + enableCleanup);
+        String ip = request.getRemoteAddr();
+        LocalDateTime now = LocalDateTime.now();
+
+        // Log request start with configuration
+        loggingService.logRequestStart(name, ip, enableCpu, enableMemory, 
+                                     enableDbWrites, enableDbReads, enableDelays, enableCleanup);
 
         // OPTIONAL DATABASE CLEANUP
         if (enableCleanup) {
@@ -71,9 +77,6 @@ public class GreetingController {
         if (enableMemory) {
             memoryLoadService.performMemoryLoad();
         }
-
-        String ip = request.getRemoteAddr();
-        LocalDateTime now = LocalDateTime.now();
 
         // Always save the main log entry
         IpLog mainLog = new IpLog();
@@ -107,7 +110,8 @@ public class GreetingController {
             lastTime = formatDateTime(prev.getTimestamp());
         }
 
-        System.out.println("Completed configurable heavy processing for: " + name);
+        // Log request completion
+        loggingService.logRequestComplete(name);
 
         return String.format(
                 "Hello %s!%nThe current system time is %s%nThe last query was by - %s on %s%n" +

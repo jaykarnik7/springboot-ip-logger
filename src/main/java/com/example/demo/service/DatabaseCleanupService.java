@@ -12,12 +12,15 @@ public class DatabaseCleanupService {
     @Autowired
     private IpLogRepository ipLogRepository;
 
+    @Autowired
+    private LoggingService loggingService;
+
     // Database Cleanup Configuration
     @Value("${app.db.cleanup.keep-records:1000}")
     private int keepRecordsCount;
 
     public void performCleanup() {
-        System.out.println("Performing database cleanup...");
+        loggingService.logCleanupStart();
         performDatabaseCleanup();
     }
 
@@ -29,25 +32,21 @@ public class DatabaseCleanupService {
     private void performDatabaseCleanup() {
         try {
             long totalRecordsBefore = ipLogRepository.countTotalRecords();
-            System.out.println("Database cleanup started. Total records before cleanup: " + totalRecordsBefore);
+            loggingService.logCleanupAnalysis(totalRecordsBefore, keepRecordsCount);
 
             if (totalRecordsBefore <= keepRecordsCount) {
-                System.out.println("No cleanup needed. Current records (" + totalRecordsBefore +
-                        ") <= keep threshold (" + keepRecordsCount + ")");
+                loggingService.logCleanupNotNeeded(totalRecordsBefore, keepRecordsCount);
                 return;
             }
 
             int deletedRecords = ipLogRepository.deleteAllExceptLastN(keepRecordsCount);
             long totalRecordsAfter = ipLogRepository.countTotalRecords();
 
-            System.out.println("Database cleanup completed successfully!");
-            System.out.println("Records deleted: " + deletedRecords);
-            System.out.println("Records remaining: " + totalRecordsAfter);
-            System.out.println("Configured to keep last " + keepRecordsCount + " records");
+            loggingService.logCleanupComplete(deletedRecords, totalRecordsAfter, keepRecordsCount);
 
         } catch (Exception e) {
-            System.err.println("Database cleanup failed: " + e.getMessage());
-            e.printStackTrace();
+            loggingService.logCleanupError(e.getMessage());
+            loggingService.logError("Database cleanup failed", e);
         }
     }
 }

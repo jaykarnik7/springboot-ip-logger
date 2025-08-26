@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -9,6 +10,9 @@ import java.util.Random;
 
 @Service
 public class CpuLoadService {
+
+    @Autowired
+    private LoggingService loggingService;
 
     private Random random = new Random();
 
@@ -26,9 +30,9 @@ public class CpuLoadService {
     private int sortingArraySize;
 
     public void performCpuLoad() {
-        System.out.println("Performing CPU-intensive operations (Fibonacci:" + fibonacciCount +
-                ", Sorting rounds:" + sortingRounds + ")...");
+        loggingService.logCpuLoadStart(fibonacciCount, sortingRounds);
         performConfigurableCpuTask();
+        loggingService.logCpuLoadComplete();
     }
 
     /**
@@ -39,7 +43,7 @@ public class CpuLoadService {
         for (int i = 0; i < fibonacciCount; i++) {
             int fibNumber = fibonacciBase + i;
             long result = calculateFibonacci(fibNumber);
-            System.out.println("Fibonacci(" + fibNumber + ") = " + result);
+            loggingService.logFibonacciResult(fibNumber, result);
         }
 
         // Additional CPU work: Sort large arrays

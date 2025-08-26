@@ -17,6 +17,9 @@ public class DatabaseLoadService {
     @Autowired
     private IpLogRepository ipLogRepository;
 
+    @Autowired
+    private LoggingService loggingService;
+
     // Database Configuration - Common number for both reads and writes
     @Value("${app.load.db.operations:20}")
     private int dbOperations;
@@ -26,14 +29,14 @@ public class DatabaseLoadService {
     private int dbRecordsPerOperation;
 
     public void performDatabaseWrites(String name, String ip, LocalDateTime now) {
-        System.out.println("Performing " + dbOperations + " batch database writes (" + 
-                dbRecordsPerOperation + " records per batch)...");
+        loggingService.logDbWriteStart(dbOperations, dbRecordsPerOperation);
         performConfigurableDatabaseWrites(name, ip, now);
     }
 
     public void performOptimizedDatabaseReads() {
-        System.out.println("Performing " + dbOperations + " optimized database read operations...");
+        loggingService.logDbReadStart(dbOperations);
         performOptimizedDatabaseReadsInternal();
+        loggingService.logDbReadComplete(dbOperations);
     }
 
     /**
@@ -59,11 +62,10 @@ public class DatabaseLoadService {
             ipLogRepository.saveAll(batchLogs);
             totalRecordsInserted += dbRecordsPerOperation;
             
-            System.out.println("Batch " + (batchNum + 1) + ": Inserted " + dbRecordsPerOperation + " records");
+            loggingService.logDbWriteBatch(batchNum + 1, dbRecordsPerOperation);
         }
         
-        System.out.println("Completed " + dbOperations + " batch write operations, " +
-                "total records inserted: " + totalRecordsInserted);
+        loggingService.logDbWriteComplete(dbOperations, totalRecordsInserted);
     }
 
     /**
@@ -74,8 +76,7 @@ public class DatabaseLoadService {
         for (int i = 0; i < dbOperations; i++) {
             // Read the configured number of recent records
             List<IpLog> recentLogs = ipLogRepository.findTopNByOrderByTimestampDesc(dbRecordsPerOperation);
-            System.out.println("Optimized read operation " + (i + 1) + ": Found " +
-                    recentLogs.size() + " recent records (limit: " + dbRecordsPerOperation + ")");
+            loggingService.logDbReadOperation(i + 1, recentLogs.size(), dbRecordsPerOperation);
 
             // Process some data to ensure the records are actually used
             if (!recentLogs.isEmpty()) {
@@ -83,9 +84,8 @@ public class DatabaseLoadService {
                         .map(IpLog::getIp)
                         .distinct()
                         .count();
-                System.out.println("  └─ Unique IPs in fetched records: " + uniqueIps);
+                loggingService.logDbReadAnalysis(uniqueIps);
             }
         }
-        System.out.println("Completed " + dbOperations + " optimized database read operations");
     }
 }

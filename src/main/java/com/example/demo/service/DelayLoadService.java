@@ -1,10 +1,14 @@
 package com.example.demo.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DelayLoadService {
+
+    @Autowired
+    private LoggingService loggingService;
 
     // Processing Delay Configuration
     @Value("${app.load.delay.external-calls:3}")
@@ -17,9 +21,9 @@ public class DelayLoadService {
     private int mathOperations;
 
     public void performDelayLoad() {
-        System.out.println("Simulating " + externalServiceCalls + " external calls with " +
-                externalCallDelay + "ms delay each...");
+        loggingService.logDelayLoadStart(externalServiceCalls, externalCallDelay);
         simulateConfigurableSlowProcessing();
+        loggingService.logDelayLoadComplete(externalServiceCalls, mathOperations);
     }
 
     /**
@@ -30,7 +34,7 @@ public class DelayLoadService {
         try {
             // Simulate configurable number of external service calls
             for (int i = 0; i < externalServiceCalls; i++) {
-                System.out.println("Simulating external service call " + (i + 1) + "...");
+                loggingService.logExternalCall(i + 1);
                 Thread.sleep(externalCallDelay);
             }
 
@@ -43,8 +47,5 @@ public class DelayLoadService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        System.out.println("Slow processing simulation completed: " +
-                externalServiceCalls + " external calls, " +
-                mathOperations + " math operations");
     }
 }
