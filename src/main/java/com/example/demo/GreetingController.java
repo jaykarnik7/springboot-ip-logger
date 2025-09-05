@@ -24,19 +24,19 @@ public class GreetingController {
 
     @Autowired
     private IpLogRepository ipLogRepository;
-    
+
     @Autowired
     private CpuLoadService cpuLoadService;
-    
+
     @Autowired
     private MemoryLoadService memoryLoadService;
-    
+
     @Autowired
     private DatabaseLoadService databaseLoadService;
-    
+
     @Autowired
     private DelayLoadService delayLoadService;
-    
+
     @Autowired
     private DatabaseCleanupService databaseCleanupService;
 
@@ -60,8 +60,8 @@ public class GreetingController {
         LocalDateTime now = LocalDateTime.now();
 
         // Log request start with configuration
-        loggingService.logRequestStart(name, ip, enableCpu, enableMemory, 
-                                     enableDbWrites, enableDbReads, enableDelays, enableCleanup);
+        loggingService.logRequestStart(name, ip, enableCpu, enableMemory,
+                enableDbWrites, enableDbReads, enableDelays, enableCleanup);
 
         // OPTIONAL DATABASE CLEANUP
         if (enableCleanup) {
